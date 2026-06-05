@@ -35,10 +35,6 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        with:
-          # Pages をまだ有効化していない場合、自動で有効化を試みる
-          # （公開リポジトリ、または Pages 対応の有料プランが必要）
-          enablement: true
 
       - name: Upload site (repository root)
         uses: actions/upload-pages-artifact@v3

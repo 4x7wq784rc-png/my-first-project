@@ -26,23 +26,32 @@
 3. 最初に右下の **⚙️ おうちの人せってい** から、ごほうび名・シールの目標数・
    おやくそくリストをお子さんに合わせて調整してください。
 
-### GitHub Pages で公開する（どの端末からも URL で開ける）
+### おすすめ：各端末に入れて使う（公開なし）
 
-`.github/workflows/deploy-pages.yml` を同梱しています。対象ブランチに push すると
-自動でサイトが公開されます。**最初に一度だけ**、リポジトリ設定が必要です：
+このアプリは公開（ホスティング）しなくても、各端末に `index.html` を置いて
+**「ホーム画面に追加」** するだけで、アプリのように使えます。
+シールや記録は端末内に保存されるので、ネット公開は不要です。これが一番手軽で安心です。
 
-1. GitHub のリポジトリ → **Settings** → **Pages** を開く
-2. **Build and deployment** → **Source** を **「GitHub Actions」** に変更
-3. （フィーチャーブランチから公開する場合）**Settings → Environments → `github-pages`**
-   の **Deployment branches** に対象ブランチを追加、または「All branches」に設定
-4. **Actions** タブでワークフローが成功すると、公開 URL
-   （`https://<ユーザー名>.github.io/my-first-project/`）が表示されます
+- iPhone / iPad（Safari）：`index.html` を開く → 共有ボタン → **「ホーム画面に追加」**
+- Android（Chrome）：`index.html` を開く → メニュー → **「ホーム画面に追加」**
+- ファイルの渡し方：AirDrop、メール添付、クラウド（iCloud / Google Drive）に置いて各端末で開く など
+
+### （任意）GitHub Pages で公開する
+
+`.github/workflows/deploy-pages.yml` を同梱しています（現在は **手動実行のみ**）。
+将来 URL で公開したくなったとき用です。利用には以下が必要です：
+
+1. リポジトリを **公開（public）** にする（無料プランの場合）。
+   非公開のままなら **GitHub Pro 等の対応プラン** が必要です。
+2. **Settings → Pages → Source** を **「GitHub Actions」** に変更
+3. **Actions** タブで `Deploy to GitHub Pages` を **Run workflow** で実行
+4. 成功すると公開 URL（`https://<ユーザー名>.github.io/my-first-project/`）が出ます
 
 > ⚠️ **公開範囲について**：通常アカウントの GitHub Pages は「URL を知っていれば誰でも閲覧可能」な
-> 完全公開です（家族限定はできません）。ただし、シールや記録などのデータは各端末内
-> （localStorage）にのみ保存され、ネット上には一切アップロードされません。
+> 完全公開です（家族限定はできません）。データ自体は各端末内（localStorage）にのみ保存され、
+> ネット上にはアップロードされません。
 
-### ローカルで使う場合（任意）
+### ローカルで簡易サーバを立てて使う場合（任意）
 
 PWA のオフライン機能（Service Worker）を完全に有効にするには HTTPS 配信が必要です。
 GitHub Pages などに公開するか、ローカルで簡易サーバを立てて開いてください。

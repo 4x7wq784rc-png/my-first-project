@@ -1,13 +1,16 @@
 name: Deploy to GitHub Pages
 
-# このブランチ（または main）に push すると、サイトを自動で公開します。
-# 手動実行（Actions タブの「Run workflow」）も可能です。
+# 将来 GitHub Pages で公開したくなったとき用のワークフローです。
+# 現在は「手動実行のみ」（Actions タブ →このワークフロー→「Run workflow」）。
+# 公開を本格運用するなら、push トリガーのコメントを外してください。
+#
+# ※ 利用には事前に Settings → Pages → Source を「GitHub Actions」にする必要があります。
+#   非公開リポジトリの場合は GitHub Pro 等の対応プランが必要です。
 on:
-  push:
-    branches:
-      - main
-      - claude/disney-reward-sticker-app-S0f0Q
   workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
 
 # Pages へのデプロイに必要な権限
 permissions:
@@ -32,6 +35,10 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          # Pages をまだ有効化していない場合、自動で有効化を試みる
+          # （公開リポジトリ、または Pages 対応の有料プランが必要）
+          enablement: true
 
       - name: Upload site (repository root)
         uses: actions/upload-pages-artifact@v3

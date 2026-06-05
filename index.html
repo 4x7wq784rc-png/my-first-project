@@ -70,7 +70,8 @@
     transition:transform .2s;
   }
   .slot.filled{background:radial-gradient(circle at 30% 25%,#fff7d6,#ffe27a);
-    border:2px solid #ffd24d;box-shadow:0 4px 10px rgba(255,180,40,.35);}
+    border:2px solid #ffd24d;box-shadow:0 4px 10px rgba(255,180,40,.35);cursor:pointer;}
+  .slot.filled:active{transform:scale(.9);}
   .slot.pop{animation:pop .5s cubic-bezier(.2,1.4,.4,1);}
   @keyframes pop{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.25) rotate(8deg)}100%{transform:scale(1)}}
 
@@ -186,7 +187,7 @@
 
   <!-- シールボード -->
   <section class="board">
-    <h2>🌟 あつめたシール</h2>
+    <h2>🌟 あつめたシール <span style="font-weight:400;font-size:11px;">（シールをタップで けせるよ）</span></h2>
     <div class="grid" id="grid"></div>
   </section>
 
@@ -298,12 +299,17 @@
 <script>
 const KEY = 'magicStickerBank.v1';
 const DEFAULT_EMOJIS = ['🧹','🍚','🦷','🛏️','🧸','👚','🐶','📚','🛁','🌸','🥦','🙆'];
+// あつめると もらえる「かわいいシール」の種類（ランダムに もらえる）
+const CUTE_STICKERS = ['⭐','🐻','🐰','🐱','🐶','🦄','🌈','🍓','🌸','🐥',
+  '🐼','🦊','🍦','🎀','🧁','🐹','🐧','💖','🍭','🌟','🦋','🐰','🐯','🍡'];
+function randomSticker(){ return CUTE_STICKERS[Math.floor(Math.random()*CUTE_STICKERS.length)]; }
 
 const DEFAULT_STATE = {
   reward:'ディズニーでアイス',
   goal:10,
   pin:'',           // おうちの人パスコード（くうらん＝ロックなし）
   stickers:0,
+  collected:[],     // あつめたシールの絵文字（ごほうびまでの分）
   totalEarned:0,
   rewardsEarned:0,
   lastReset:'',
@@ -328,6 +334,10 @@ function load(){
     const raw = localStorage.getItem(KEY);
     if(!raw) return structuredClone(DEFAULT_STATE);
     const s = Object.assign(structuredClone(DEFAULT_STATE), JSON.parse(raw));
+    // 旧データ移行＆整合性：collected の数を stickers に合わせる
+    if(!Array.isArray(s.collected)) s.collected = [];
+    while(s.collected.length < s.stickers) s.collected.push(randomSticker());
+    if(s.collected.length > s.stickers) s.collected = s.collected.slice(0, s.stickers);
     return s;
   }catch(e){ return structuredClone(DEFAULT_STATE); }
 }
@@ -361,9 +371,26 @@ function renderGrid(){
   const total = Math.max(state.goal, 5);
   for(let i=0;i<total;i++){
     const s = document.createElement('div');
-    s.className = 'slot' + (i < state.stickers ? ' filled' : '');
-    s.textContent = i < state.stickers ? '⭐' : '';
+    const filled = i < state.stickers;
+    s.className = 'slot' + (filled ? ' filled' : '');
+    s.textContent = filled ? (state.collected[i] || '⭐') : '';
+    if(filled){
+      // シールをタップ → けすか きく
+      s.addEventListener('click', ()=>askDeleteSticker(i));
+    }
     grid.appendChild(s);
+  }
+}
+
+// シールを1まい けす（かくにん あり）
+function askDeleteSticker(i){
+  const icon = state.collected[i] || '⭐';
+  if(confirm('このシール ' + icon + ' を けしますか？')){
+    state.collected.splice(i,1);
+    state.stickers = Math.max(0, state.stickers - 1);
+    save();
+    render();
+    toast('シールを 1まい けしたよ');
   }
 }
 
@@ -388,6 +415,7 @@ function renderTasks(){
 function completeTask(t){
   state.doneToday[t.id] = true;
   state.stickers++;
+  state.collected.push(randomSticker());   // かわいいシールを ランダムでもらう
   state.totalEarned++;
   state.history.unshift({date:today(), label:t.label, emoji:t.emoji});
   state.history = state.history.slice(0,50);
@@ -416,6 +444,7 @@ function showCelebrate(){
 }
 function redeem(){
   state.stickers = Math.max(0, state.stickers - state.goal);
+  state.collected.splice(0, state.goal);   // つかったシールを へらす
   state.rewardsEarned++;
   state.history.unshift({date:today(), label:'🎁 '+state.reward+' をゲット！', emoji:'🎉'});
   save();

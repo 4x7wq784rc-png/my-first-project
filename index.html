@@ -44,6 +44,10 @@
     box-shadow:var(--shadow);text-align:center;position:relative;overflow:hidden;
   }
   .castle{font-size:46px;line-height:1;filter:drop-shadow(0 4px 6px rgba(0,0,0,.15));}
+  .avatar{width:92px;height:92px;border-radius:50%;object-fit:cover;
+    border:4px solid #fff;box-shadow:0 6px 16px rgba(120,60,180,.3);
+    display:inline-block;background:#eee;}
+  .avatar.big{width:120px;height:120px;border:5px solid #fff;}
   .reward-name{font-size:18px;font-weight:700;margin:6px 0 2px;}
   .reward-sub{font-size:12px;color:var(--soft);margin:0 0 12px;}
   .count-big{font-size:15px;color:var(--soft);margin-bottom:10px;}
@@ -178,6 +182,7 @@
 
   <!-- ごほうびカード -->
   <section class="goal">
+    <img id="avatar" class="avatar" alt="" hidden />
     <div class="castle">🏰</div>
     <div class="reward-name" id="rewardName">ディズニーでアイス</div>
     <div class="reward-sub">めざせ！ シールをあつめてごほうび 🍦</div>
@@ -216,6 +221,20 @@
     <div class="field">
       <label>シールが なんこ あつまったら ごほうび？</label>
       <input id="setGoal" type="number" min="1" max="30" inputmode="numeric" />
+    </div>
+
+    <div class="field">
+      <label>👶 おもいでの しゃしん（この たんまつの中だけに ほぞん）</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <img id="photoPreview" class="avatar" alt="" hidden />
+        <div style="flex:1;">
+          <input id="photoInput" type="file" accept="image/*" style="font-size:13px;" />
+        </div>
+      </div>
+      <button class="ghost" id="removePhoto" style="margin-top:0;">しゃしんを けす（お城にもどす）</button>
+      <div style="font-size:11px;color:var(--soft);">
+        えらんだ しゃしんは ネットには アップロードされず、この たんまつの中だけに ほぞんされます。
+      </div>
     </div>
 
     <div class="field">
@@ -287,6 +306,7 @@
 
 <!-- お祝い -->
 <div class="celebrate" id="celebrate">
+  <img id="celebrateAvatar" class="avatar big" alt="" hidden style="margin-bottom:10px;" />
   <div class="big">🎉🍦🎉</div>
   <h2>やったね！ ごほうびゲット！</h2>
   <p id="celebrateMsg">ディズニーでアイスをたべよう！</p>
@@ -310,6 +330,7 @@ const DEFAULT_STATE = {
   pin:'',           // おうちの人パスコード（くうらん＝ロックなし）
   stickers:0,
   collected:[],     // あつめたシールの絵文字（ごほうびまでの分）
+  photo:'',         // おもいでの写真（データURL・端末内のみ／ネットに出さない）
   totalEarned:0,
   rewardsEarned:0,
   lastReset:'',
@@ -355,6 +376,12 @@ function dailyReset(){
 
 /* ===== 描画 ===== */
 function render(){
+  // おもいでの写真（あれば お城のかわりに表示）
+  const av = document.getElementById('avatar');
+  const castle = document.querySelector('.castle');
+  if(state.photo){ av.src = state.photo; av.hidden = false; castle.style.display='none'; }
+  else { av.hidden = true; av.removeAttribute('src'); castle.style.display=''; }
+
   document.getElementById('rewardName').textContent = state.reward;
   document.getElementById('goalCount').textContent = state.goal;
   document.getElementById('curCount').textContent = state.stickers;
@@ -449,6 +476,8 @@ function completeTask(t){
 
 /* ===== お祝い & ごほうび ===== */
 function showCelebrate(){
+  const ca = document.getElementById('celebrateAvatar');
+  if(state.photo){ ca.src = state.photo; ca.hidden = false; } else { ca.hidden = true; }
   document.getElementById('celebrateMsg').textContent = state.reward + 'を たべよう！';
   document.getElementById('celebrate').classList.add('show');
   confetti();
@@ -531,9 +560,51 @@ function revealSettings(){
   document.getElementById('setReward').value = state.reward;
   document.getElementById('setGoal').value = state.goal;
   document.getElementById('setPin').value = state.pin || '';
+  updatePhotoPreview();
   renderTaskEdit();
   renderEmojiPick();
   document.getElementById('settingsModal').classList.add('show');
+}
+
+/* おもいでの写真（端末内のみ・ネットに出さない） */
+function updatePhotoPreview(){
+  const p = document.getElementById('photoPreview');
+  if(state.photo){ p.src = state.photo; p.hidden = false; }
+  else { p.hidden = true; p.removeAttribute('src'); }
+}
+function onPhotoPick(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // 大きすぎる写真は縮小して保存（端末の容量を節約）
+      const max = 480;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      try{
+        state.photo = canvas.toDataURL('image/jpeg', 0.82);
+        save();
+        render();
+        updatePhotoPreview();
+        toast('しゃしんを せっていしたよ 📷');
+      }catch(err){ toast('しゃしんが おおきすぎるみたい'); }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';   // 同じ写真を選び直せるように
+}
+function removePhoto(){
+  state.photo = '';
+  save();
+  render();
+  updatePhotoPreview();
+  toast('しゃしんを けしたよ');
 }
 function renderTaskEdit(){
   const box = document.getElementById('taskEditList');
@@ -671,6 +742,8 @@ document.getElementById('openSettings').addEventListener('click',openSettings);
 document.getElementById('closeSettings').addEventListener('click',()=>document.getElementById('settingsModal').classList.remove('show'));
 document.getElementById('saveSettings').addEventListener('click',saveSettings);
 document.getElementById('addTask').addEventListener('click',addTask);
+document.getElementById('photoInput').addEventListener('change',onPhotoPick);
+document.getElementById('removePhoto').addEventListener('click',removePhoto);
 document.getElementById('resetAll').addEventListener('click',resetAll);
 document.getElementById('openStats').addEventListener('click',openStats);
 document.getElementById('closeStats').addEventListener('click',()=>document.getElementById('statsModal').classList.remove('show'));

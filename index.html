@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#7b5cff" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="まほうのシール" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>まほうのシールちょきん</title>
+<style>
+  :root{
+    --bg1:#6a8dff; --bg2:#b06bff; --bg3:#ff8fd6;
+    --card:rgba(255,255,255,.92);
+    --ink:#3a2a66; --soft:#7c6aa8;
+    --gold:#ffcf3f; --pink:#ff6fae; --good:#41c98a;
+    --shadow:0 10px 30px rgba(60,30,110,.25);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro",
+      "Yu Gothic",-apple-system,system-ui,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3));
+    background-attachment:fixed;
+    min-height:100%;
+    overflow-x:hidden;
+    user-select:none;
+  }
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+  .stars i{position:absolute;color:#fff;opacity:.0;animation:tw 4s infinite ease-in-out;font-size:14px;}
+  @keyframes tw{0%,100%{opacity:.1;transform:scale(.7)}50%{opacity:.9;transform:scale(1.15)}}
+
+  .wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:16px 16px 40px;}
+  header{text-align:center;color:#fff;padding:14px 0 6px;}
+  header h1{margin:0;font-size:24px;letter-spacing:1px;text-shadow:0 2px 8px rgba(40,10,80,.35);}
+  header p{margin:4px 0 0;font-size:13px;opacity:.95;}
+
+  /* ごほうびカード */
+  .goal{
+    background:var(--card);border-radius:24px;padding:18px 18px 16px;margin-top:14px;
+    box-shadow:var(--shadow);text-align:center;position:relative;overflow:hidden;
+  }
+  .castle{font-size:46px;line-height:1;filter:drop-shadow(0 4px 6px rgba(0,0,0,.15));}
+  .reward-name{font-size:18px;font-weight:700;margin:6px 0 2px;}
+  .reward-sub{font-size:12px;color:var(--soft);margin:0 0 12px;}
+  .count-big{font-size:15px;color:var(--soft);margin-bottom:10px;}
+  .count-big b{font-size:30px;color:var(--pink);}
+
+  .bar{height:22px;border-radius:14px;background:#ece6ff;overflow:hidden;position:relative;}
+  .bar > span{
+    display:block;height:100%;border-radius:14px;
+    background:linear-gradient(90deg,var(--gold),var(--pink));
+    width:0%;transition:width .6s cubic-bezier(.2,.9,.3,1.4);
+  }
+  .bar small{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:#6a4a9a;}
+
+  /* シールボード */
+  .board{
+    background:var(--card);border-radius:24px;padding:16px;margin-top:14px;box-shadow:var(--shadow);
+  }
+  .board h2{margin:0 0 10px;font-size:15px;color:var(--soft);display:flex;align-items:center;gap:6px;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+  .slot{
+    aspect-ratio:1;border-radius:16px;background:#f1ecff;border:2px dashed #d6cbff;
+    display:flex;align-items:center;justify-content:center;font-size:26px;
+    transition:transform .2s;
+  }
+  .slot.filled{background:radial-gradient(circle at 30% 25%,#fff7d6,#ffe27a);
+    border:2px solid #ffd24d;box-shadow:0 4px 10px rgba(255,180,40,.35);}
+  .slot.pop{animation:pop .5s cubic-bezier(.2,1.4,.4,1);}
+  @keyframes pop{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.25) rotate(8deg)}100%{transform:scale(1)}}
+
+  /* タスク */
+  .tasks{margin-top:16px;}
+  .tasks h2{color:#fff;font-size:16px;margin:0 0 10px;padding-left:4px;
+    text-shadow:0 1px 4px rgba(40,10,80,.3);}
+  .task{
+    display:flex;align-items:center;gap:14px;background:var(--card);
+    border-radius:20px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);
+    cursor:pointer;transition:transform .12s, opacity .3s;border:none;width:100%;text-align:left;
+  }
+  .task:active{transform:scale(.97);}
+  .task .emoji{font-size:30px;width:42px;text-align:center;}
+  .task .label{flex:1;font-size:17px;font-weight:700;}
+  .task .label small{display:block;font-size:12px;font-weight:400;color:var(--soft);}
+  .task .btn{
+    background:linear-gradient(135deg,#ffd24d,#ff8db0);color:#fff;font-weight:800;
+    border-radius:14px;padding:9px 14px;font-size:14px;white-space:nowrap;
+    box-shadow:0 4px 0 rgba(200,90,140,.4);
+  }
+  .task.done{opacity:.62;}
+  .task.done .btn{background:var(--good);box-shadow:0 4px 0 rgba(40,150,100,.4);}
+  .task.done .label{text-decoration:line-through;text-decoration-color:rgba(0,0,0,.25);}
+
+  .footer{display:flex;gap:10px;margin-top:18px;}
+  .footer button{
+    flex:1;background:rgba(255,255,255,.22);color:#fff;border:1.5px solid rgba(255,255,255,.5);
+    border-radius:16px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;backdrop-filter:blur(4px);
+  }
+
+  /* モーダル */
+  .modal{position:fixed;inset:0;z-index:50;background:rgba(40,15,70,.55);
+    display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);}
+  .modal.show{display:flex;}
+  .sheet{background:#fff;border-radius:24px;padding:22px;max-width:440px;width:100%;
+    box-shadow:var(--shadow);max-height:88vh;overflow:auto;}
+  .sheet h3{margin:0 0 14px;font-size:18px;text-align:center;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:13px;color:var(--soft);margin-bottom:5px;font-weight:700;}
+  .field input{width:100%;padding:11px 12px;border:2px solid #e3dbff;border-radius:12px;
+    font-size:16px;font-family:inherit;color:var(--ink);}
+  .field input:focus{outline:none;border-color:var(--pink);}
+  .row{display:flex;gap:8px;}
+  .row .field{flex:1;}
+  .emoji-pick{display:flex;flex-wrap:wrap;gap:6px;}
+  .emoji-pick button{font-size:22px;padding:6px 8px;border:2px solid #eee;border-radius:10px;background:#fff;cursor:pointer;}
+  .emoji-pick button.sel{border-color:var(--pink);background:#fff0f7;}
+  .task-edit{display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#f7f4ff;
+    padding:8px;border-radius:12px;}
+  .task-edit .e{font-size:22px;}
+  .task-edit .t{flex:1;font-size:14px;font-weight:700;}
+  .task-edit .del{background:#ffe1e8;color:#e0436d;border:none;border-radius:10px;
+    width:32px;height:32px;font-size:16px;cursor:pointer;}
+  .primary{width:100%;background:linear-gradient(135deg,#ffce3d,#ff6fae);color:#fff;border:none;
+    border-radius:16px;padding:14px;font-size:16px;font-weight:800;cursor:pointer;
+    box-shadow:0 5px 0 rgba(200,90,140,.4);margin-top:6px;}
+  .ghost{width:100%;background:none;border:none;color:var(--soft);padding:12px;font-size:13px;
+    cursor:pointer;margin-top:6px;}
+  .danger{color:#e0436d;}
+
+  /* お祝い */
+  .celebrate{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+    flex-direction:column;background:rgba(30,10,60,.7);text-align:center;color:#fff;padding:24px;}
+  .celebrate.show{display:flex;}
+  .celebrate .big{font-size:70px;animation:bounce 1s infinite;}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+  .celebrate h2{font-size:26px;margin:14px 0 6px;text-shadow:0 2px 10px rgba(0,0,0,.4);}
+  .celebrate p{margin:0 0 20px;font-size:15px;opacity:.95;}
+  .confetti{position:fixed;inset:0;pointer-events:none;z-index:61;overflow:hidden;}
+  .confetti i{position:absolute;top:-20px;width:10px;height:14px;border-radius:2px;
+    animation:fall linear forwards;}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:1;}}
+
+  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(40px);
+    background:#fff;color:var(--ink);padding:12px 20px;border-radius:30px;font-weight:700;font-size:14px;
+    box-shadow:var(--shadow);opacity:0;transition:.3s;z-index:70;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .hint{text-align:center;color:rgba(255,255,255,.85);font-size:12px;margin-top:18px;}
+</style>
+</head>
+<body>
+<div class="stars" id="stars"></div>
+
+<div class="wrap">
+  <header>
+    <h1>✨ まほうのシールちょきん ✨</h1>
+    <p>おてつだいや はみがきで シールをあつめよう！</p>
+  </header>
+
+  <!-- ごほうびカード -->
+  <section class="goal">
+    <div class="castle">🏰</div>
+    <div class="reward-name" id="rewardName">ディズニーでアイス</div>
+    <div class="reward-sub">めざせ！ シールをあつめてごほうび 🍦</div>
+    <div class="count-big">いま <b id="curCount">0</b> こ / <span id="goalCount">10</span> こ</div>
+    <div class="bar"><span id="barFill"></span><small id="barText">0%</small></div>
+  </section>
+
+  <!-- シールボード -->
+  <section class="board">
+    <h2>🌟 あつめたシール</h2>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- タスク -->
+  <section class="tasks">
+    <h2>きょうの おやくそく</h2>
+    <div id="taskList"></div>
+  </section>
+
+  <div class="footer">
+    <button id="openSettings">⚙️ おうちの人せってい</button>
+    <button id="openStats">📖 これまでのきろく</button>
+  </div>
+
+  <p class="hint">スマホのホームに ついかすると アプリみたいにつかえるよ</p>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal" id="settingsModal">
+  <div class="sheet">
+    <h3>⚙️ おうちの人せってい</h3>
+    <div class="field">
+      <label>ごほうびのなまえ</label>
+      <input id="setReward" type="text" maxlength="20" placeholder="ディズニーでアイス" />
+    </div>
+    <div class="field">
+      <label>シールが なんこ あつまったら ごほうび？</label>
+      <input id="setGoal" type="number" min="1" max="30" inputmode="numeric" />
+    </div>
+
+    <div class="field">
+      <label>おやくそく（タスク）のリスト</label>
+      <div id="taskEditList"></div>
+    </div>
+
+    <div class="field">
+      <label>あたらしい おやくそくを ついか</label>
+      <div class="emoji-pick" id="emojiPick"></div>
+      <div class="row" style="margin-top:8px;">
+        <div class="field" style="margin:0;">
+          <input id="newTaskName" type="text" maxlength="16" placeholder="おやくそくのなまえ" />
+        </div>
+        <button class="primary" style="width:auto;margin:0;padding:0 18px;" id="addTask">ついか</button>
+      </div>
+    </div>
+
+    <button class="primary" id="saveSettings">ほぞんする</button>
+    <button class="ghost danger" id="resetAll">ぜんぶ さいしょから（データけし）</button>
+    <button class="ghost" id="closeSettings">とじる</button>
+  </div>
+</div>
+
+<!-- 記録モーダル -->
+<div class="modal" id="statsModal">
+  <div class="sheet">
+    <h3>📖 これまでのきろく</h3>
+    <div class="field" style="text-align:center;">
+      <div style="font-size:14px;color:var(--soft);">これまでに もらったごほうび</div>
+      <div style="font-size:34px;color:var(--pink);font-weight:800;" id="rewardsEarned">0</div>
+      <div style="font-size:14px;color:var(--soft);">かい 🎉</div>
+    </div>
+    <div class="field" style="text-align:center;">
+      <div style="font-size:14px;color:var(--soft);">あつめたシール ぜんぶで</div>
+      <div style="font-size:28px;color:var(--gold);font-weight:800;" id="totalEarned">0</div>
+      <div style="font-size:14px;color:var(--soft);">まい ⭐</div>
+    </div>
+    <div class="field">
+      <label>さいきんの がんばり</label>
+      <div id="historyList" style="font-size:14px;color:var(--ink);max-height:200px;overflow:auto;"></div>
+    </div>
+    <button class="ghost" id="closeStats">とじる</button>
+  </div>
+</div>
+
+<!-- お祝い -->
+<div class="celebrate" id="celebrate">
+  <div class="big">🎉🍦🎉</div>
+  <h2>やったね！ ごほうびゲット！</h2>
+  <p id="celebrateMsg">ディズニーでアイスをたべよう！</p>
+  <button class="primary" style="max-width:260px;" id="redeem">ごほうびを もらう！</button>
+</div>
+<div class="confetti" id="confetti"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'magicStickerBank.v1';
+const DEFAULT_EMOJIS = ['🧹','🍚','🦷','🛏️','🧸','👚','🐶','📚','🛁','🌸','🥦','🙆'];
+
+const DEFAULT_STATE = {
+  reward:'ディズニーでアイス',
+  goal:10,
+  stickers:0,
+  totalEarned:0,
+  rewardsEarned:0,
+  lastReset:'',
+  tasks:[
+    {id:id(), emoji:'🧹', label:'おてつだいをした', sub:'おかたづけ・おそうじ'},
+    {id:id(), emoji:'🍚', label:'ごはんを かんしょく', sub:'のこさず たべた'},
+    {id:id(), emoji:'🦷', label:'はみがきを した', sub:'ピカピカ ✨'},
+    {id:id(), emoji:'🛏️', label:'はやね はやおき', sub:'じぶんで おきた'},
+  ],
+  doneToday:{},     // taskId -> true
+  history:[],       // {date,label,emoji}
+};
+
+let state = load();
+let pickedEmoji = DEFAULT_EMOJIS[0];
+
+function id(){ return Math.random().toString(36).slice(2,9); }
+function today(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return structuredClone(DEFAULT_STATE);
+    const s = Object.assign(structuredClone(DEFAULT_STATE), JSON.parse(raw));
+    return s;
+  }catch(e){ return structuredClone(DEFAULT_STATE); }
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+// 日付がかわったら きょうのチェックをリセット
+function dailyReset(){
+  const t = today();
+  if(state.lastReset !== t){
+    state.lastReset = t;
+    state.doneToday = {};
+    save();
+  }
+}
+
+/* ===== 描画 ===== */
+function render(){
+  document.getElementById('rewardName').textContent = state.reward;
+  document.getElementById('goalCount').textContent = state.goal;
+  document.getElementById('curCount').textContent = state.stickers;
+  const pct = Math.min(100, Math.round(state.stickers / state.goal * 100));
+  document.getElementById('barFill').style.width = pct + '%';
+  document.getElementById('barText').textContent = pct + '%';
+  renderGrid();
+  renderTasks();
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const total = Math.max(state.goal, 5);
+  for(let i=0;i<total;i++){
+    const s = document.createElement('div');
+    s.className = 'slot' + (i < state.stickers ? ' filled' : '');
+    s.textContent = i < state.stickers ? '⭐' : '';
+    grid.appendChild(s);
+  }
+}
+
+function renderTasks(){
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  state.tasks.forEach(t=>{
+    const done = !!state.doneToday[t.id];
+    const b = document.createElement('button');
+    b.className = 'task' + (done ? ' done':'');
+    b.innerHTML = `
+      <span class="emoji">${t.emoji}</span>
+      <span class="label">${escapeHtml(t.label)}<small>${escapeHtml(t.sub||'')}</small></span>
+      <span class="btn">${done ? '✓ できた' : 'シールGET'}</span>`;
+    if(!done) b.addEventListener('click', ()=>completeTask(t));
+    else b.addEventListener('click', ()=>toast('きょうは もう できたよ！🌟'));
+    list.appendChild(b);
+  });
+}
+
+/* ===== タスク完了 ===== */
+function completeTask(t){
+  state.doneToday[t.id] = true;
+  state.stickers++;
+  state.totalEarned++;
+  state.history.unshift({date:today(), label:t.label, emoji:t.emoji});
+  state.history = state.history.slice(0,50);
+  save();
+  ding();
+  render();
+
+  // 直近で埋まったスロットをポップ
+  const slots = document.querySelectorAll('.slot');
+  const idx = state.stickers - 1;
+  if(slots[idx]){ slots[idx].classList.add('pop'); }
+
+  if(state.stickers >= state.goal){
+    setTimeout(showCelebrate, 500);
+  } else {
+    toast('シール ゲット！ ⭐ ' + state.stickers + 'こめ');
+  }
+}
+
+/* ===== お祝い & ごほうび ===== */
+function showCelebrate(){
+  document.getElementById('celebrateMsg').textContent = state.reward + 'を たべよう！';
+  document.getElementById('celebrate').classList.add('show');
+  confetti();
+  fanfare();
+}
+function redeem(){
+  state.stickers = Math.max(0, state.stickers - state.goal);
+  state.rewardsEarned++;
+  state.history.unshift({date:today(), label:'🎁 '+state.reward+' をゲット！', emoji:'🎉'});
+  save();
+  document.getElementById('celebrate').classList.remove('show');
+  render();
+  toast('おめでとう！ ' + state.reward + ' 🎉');
+}
+
+/* ===== 設定 ===== */
+function openSettings(){
+  document.getElementById('setReward').value = state.reward;
+  document.getElementById('setGoal').value = state.goal;
+  renderTaskEdit();
+  renderEmojiPick();
+  document.getElementById('settingsModal').classList.add('show');
+}
+function renderTaskEdit(){
+  const box = document.getElementById('taskEditList');
+  box.innerHTML = '';
+  state.tasks.forEach(t=>{
+    const row = document.createElement('div');
+    row.className = 'task-edit';
+    row.innerHTML = `<span class="e">${t.emoji}</span><span class="t">${escapeHtml(t.label)}</span>
+      <button class="del" data-id="${t.id}">✕</button>`;
+    row.querySelector('.del').addEventListener('click',()=>{
+      state.tasks = state.tasks.filter(x=>x.id!==t.id);
+      renderTaskEdit();
+    });
+    box.appendChild(row);
+  });
+}
+function renderEmojiPick(){
+  const box = document.getElementById('emojiPick');
+  box.innerHTML = '';
+  DEFAULT_EMOJIS.forEach(e=>{
+    const b = document.createElement('button');
+    b.textContent = e;
+    if(e===pickedEmoji) b.classList.add('sel');
+    b.addEventListener('click',()=>{ pickedEmoji=e; renderEmojiPick(); });
+    box.appendChild(b);
+  });
+}
+function addTask(){
+  const name = document.getElementById('newTaskName').value.trim();
+  if(!name){ toast('なまえを いれてね'); return; }
+  state.tasks.push({id:id(), emoji:pickedEmoji, label:name, sub:''});
+  document.getElementById('newTaskName').value = '';
+  renderTaskEdit();
+}
+function saveSettings(){
+  const r = document.getElementById('setReward').value.trim();
+  const g = parseInt(document.getElementById('setGoal').value,10);
+  if(r) state.reward = r;
+  if(g>=1 && g<=30) state.goal = g;
+  save();
+  render();
+  document.getElementById('settingsModal').classList.remove('show');
+  toast('ほぞんしたよ ✨');
+}
+function resetAll(){
+  if(confirm('ほんとうに ぜんぶのデータを けしますか？\n（シール・きろく・せってい が きえます）')){
+    localStorage.removeItem(KEY);
+    state = load();
+    document.getElementById('settingsModal').classList.remove('show');
+    render();
+    toast('さいしょから はじめるよ');
+  }
+}
+
+/* ===== 記録 ===== */
+function openStats(){
+  document.getElementById('rewardsEarned').textContent = state.rewardsEarned;
+  document.getElementById('totalEarned').textContent = state.totalEarned;
+  const h = document.getElementById('historyList');
+  if(state.history.length===0){ h.innerHTML='<div style="color:#aaa;">まだ きろくが ないよ</div>'; }
+  else{
+    h.innerHTML = state.history.slice(0,30).map(x=>
+      `<div style="padding:6px 0;border-bottom:1px solid #f0ecff;">
+        ${x.emoji} ${escapeHtml(x.label)} <span style="float:right;color:#bbb;font-size:12px;">${x.date}</span>
+      </div>`).join('');
+  }
+  document.getElementById('statsModal').classList.add('show');
+}
+
+/* ===== 演出 ===== */
+function confetti(){
+  const box = document.getElementById('confetti');
+  box.innerHTML='';
+  const colors=['#ffce3d','#ff6fae','#6a8dff','#41c98a','#b06bff'];
+  for(let i=0;i<70;i++){
+    const c=document.createElement('i');
+    c.style.left=Math.random()*100+'vw';
+    c.style.background=colors[i%colors.length];
+    c.style.animationDuration=(2+Math.random()*2)+'s';
+    c.style.animationDelay=(Math.random()*0.6)+'s';
+    box.appendChild(c);
+  }
+  setTimeout(()=>box.innerHTML='',4500);
+}
+
+let toastTimer;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+/* かんたんな音（WebAudio） */
+let audioCtx;
+function tone(freq,dur,type='sine',delay=0,vol=0.15){
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type=type; o.frequency.value=freq;
+    o.connect(g); g.connect(audioCtx.destination);
+    const t=audioCtx.currentTime+delay;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.start(t); o.stop(t+dur);
+  }catch(e){}
+}
+function ding(){ tone(880,0.18,'triangle'); tone(1320,0.2,'sine',0.08); }
+function fanfare(){ [523,659,784,1047].forEach((f,i)=>tone(f,0.3,'triangle',i*0.12,0.18)); }
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* 背景の星 */
+function makeStars(){
+  const box=document.getElementById('stars');
+  for(let i=0;i<28;i++){
+    const s=document.createElement('i');
+    s.textContent='✦';
+    s.style.left=Math.random()*100+'%';
+    s.style.top=Math.random()*100+'%';
+    s.style.fontSize=(8+Math.random()*16)+'px';
+    s.style.animationDelay=(Math.random()*4)+'s';
+    box.appendChild(s);
+  }
+}
+
+/* ===== イベント ===== */
+document.getElementById('openSettings').addEventListener('click',openSettings);
+document.getElementById('closeSettings').addEventListener('click',()=>document.getElementById('settingsModal').classList.remove('show'));
+document.getElementById('saveSettings').addEventListener('click',saveSettings);
+document.getElementById('addTask').addEventListener('click',addTask);
+document.getElementById('resetAll').addEventListener('click',resetAll);
+document.getElementById('openStats').addEventListener('click',openStats);
+document.getElementById('closeStats').addEventListener('click',()=>document.getElementById('statsModal').classList.remove('show'));
+document.getElementById('redeem').addEventListener('click',redeem);
+[ 'settingsModal','statsModal' ].forEach(idn=>{
+  document.getElementById(idn).addEventListener('click',e=>{ if(e.target.id===idn) e.target.classList.remove('show'); });
+});
+
+/* ===== 起動 ===== */
+makeStars();
+dailyReset();
+render();
+
+/* PWA: service worker */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "100b-yen-corp-roadmap",
+  "version": "1.0.0",
+  "description": "売上100億円企業をつくるためのロードマップとプレビュー生成",
+  "scripts": {
+    "render": "node scripts/render.js"
+  },
+  "dependencies": {
+    "marked": "^18.0.5"
+  }
+}

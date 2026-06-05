@@ -26,7 +26,23 @@
 3. 最初に右下の **⚙️ おうちの人せってい** から、ごほうび名・シールの目標数・
    おやくそくリストをお子さんに合わせて調整してください。
 
-### ホスティングして使う場合（任意）
+### GitHub Pages で公開する（どの端末からも URL で開ける）
+
+`.github/workflows/deploy-pages.yml` を同梱しています。対象ブランチに push すると
+自動でサイトが公開されます。**最初に一度だけ**、リポジトリ設定が必要です：
+
+1. GitHub のリポジトリ → **Settings** → **Pages** を開く
+2. **Build and deployment** → **Source** を **「GitHub Actions」** に変更
+3. （フィーチャーブランチから公開する場合）**Settings → Environments → `github-pages`**
+   の **Deployment branches** に対象ブランチを追加、または「All branches」に設定
+4. **Actions** タブでワークフローが成功すると、公開 URL
+   （`https://<ユーザー名>.github.io/my-first-project/`）が表示されます
+
+> ⚠️ **公開範囲について**：通常アカウントの GitHub Pages は「URL を知っていれば誰でも閲覧可能」な
+> 完全公開です（家族限定はできません）。ただし、シールや記録などのデータは各端末内
+> （localStorage）にのみ保存され、ネット上には一切アップロードされません。
+
+### ローカルで使う場合（任意）
 
 PWA のオフライン機能（Service Worker）を完全に有効にするには HTTPS 配信が必要です。
 GitHub Pages などに公開するか、ローカルで簡易サーバを立てて開いてください。

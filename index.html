@@ -193,7 +193,7 @@
 
   <!-- タスク -->
   <section class="tasks">
-    <h2>きょうの おやくそく</h2>
+    <h2>きょうの おやくそく <span style="font-weight:400;font-size:11px;opacity:.85;">（「✓できた」をタップで やり直し）</span></h2>
     <div id="taskList"></div>
   </section>
 
@@ -406,9 +406,21 @@ function renderTasks(){
       <span class="label">${escapeHtml(t.label)}<small>${escapeHtml(t.sub||'')}</small></span>
       <span class="btn">${done ? '✓ できた' : 'シールGET'}</span>`;
     if(!done) b.addEventListener('click', ()=>completeTask(t));
-    else b.addEventListener('click', ()=>toast('きょうは もう できたよ！🌟'));
+    else b.addEventListener('click', ()=>askUndoTask(t));
     list.appendChild(b);
   });
+}
+
+// できた おやくそくを やり直す（シールも1つ もどす）
+function askUndoTask(t){
+  if(confirm('「'+t.label+'」を やりなおす？\n（もらった シールが 1つ へります）')){
+    state.doneToday[t.id] = false;
+    if(state.collected.length > 0) state.collected.pop();
+    state.stickers = Math.max(0, state.stickers - 1);
+    save();
+    render();
+    toast('もういちど できるよ！');
+  }
 }
 
 /* ===== タスク完了 ===== */

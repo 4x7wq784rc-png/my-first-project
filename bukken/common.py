@@ -2,7 +2,6 @@
 import re
 import time
 import unicodedata
-import urllib.robotparser
 from dataclasses import dataclass, field, asdict
 from urllib.parse import urlparse
 
@@ -13,26 +12,59 @@ from . import config
 _session = requests.Session()
 _session.headers.update({"User-Agent": config.USER_AGENT, "Accept-Language": "ja,en;q=0.8"})
 _last_hit: dict[str, float] = {}
-_robots: dict[str, urllib.robotparser.RobotFileParser] = {}
+_robots: dict[str, list] = {}
 
 
 class Blocked(Exception):
     """サイト側に拒否された（403/429 など）"""
 
 
+def _parse_robots(text: str) -> list[tuple[bool, str]]:
+    """User-agent: * のグループの (許可か, パターン) を返す"""
+    rules, agents, in_rules = [], [], False
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if ":" not in line:
+            continue
+        k, v = (x.strip() for x in line.split(":", 1))
+        k = k.lower()
+        if k == "user-agent":
+            if in_rules:
+                agents, in_rules = [], False
+            agents.append(v)
+        elif k in ("allow", "disallow"):
+            in_rules = True
+            if "*" in agents and v:
+                rules.append((k == "allow", v))
+    return rules
+
+
+def _match(pattern: str, path: str) -> bool:
+    rx = re.escape(pattern).replace(r"\*", ".*")
+    if rx.endswith(r"\$"):
+        rx = rx[:-2] + "$"
+    return re.match(rx, path) is not None
+
+
 def allowed_by_robots(url: str) -> bool:
+    """Google 方式（* と $ に対応、最も長く一致した規則を採用、同じ長さなら許可）"""
     p = urlparse(url)
     base = f"{p.scheme}://{p.netloc}"
-    rp = _robots.get(base)
-    if rp is None:
-        rp = urllib.robotparser.RobotFileParser()
+    rules = _robots.get(base)
+    if rules is None:
         try:
             r = _session.get(base + "/robots.txt", timeout=20)
-            rp.parse(r.text.splitlines() if r.status_code == 200 else [])
+            rules = _parse_robots(r.text) if r.status_code == 200 else []
         except requests.RequestException:
-            rp.parse([])
-        _robots[base] = rp
-    return rp.can_fetch("*", url)
+            rules = []
+        _robots[base] = rules
+    path = p.path + (("?" + p.query) if p.query else "")
+    best = None
+    for allow, pat in rules:
+        if _match(pat, path):
+            if best is None or len(pat) > len(best[1]) or (len(pat) == len(best[1]) and allow):
+                best = (allow, pat)
+    return best is None or best[0]
 
 
 def fetch(url: str, *, encoding: str | None = None, check_robots: bool = True) -> str:

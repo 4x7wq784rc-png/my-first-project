@@ -69,7 +69,7 @@ def _parse(html: str, mode: str, limit: float, type_label: str = "") -> tuple[li
                 else:
                     f[k] = norm(td.get_text(" "))
         address = f.get("所在地", "")
-        if not ward_of(address):
+        if ward_of(address) not in [w[2] for w in config.WARDS]:
             continue
         price_text = f.get("価格", "").replace(" ", "")
         price = parse_price_man(price_text)

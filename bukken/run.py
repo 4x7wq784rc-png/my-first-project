@@ -9,6 +9,7 @@ import json
 import sys
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from .common import Blocked
@@ -37,21 +38,26 @@ def main() -> int:
     if args.sites:
         want = set(args.sites.split(","))
         mods = [m for m in mods if m.__name__.rsplit(".", 1)[-1] in want]
-    for mod in mods:
+    def work(mod):
         t0 = time.time()
         print(f"[{mod.NAME}] 取得開始", flush=True)
         try:
             items = mod.collect(log=lambda s: print(s, flush=True))
             uniq = {i.key: i for i in items}
             ok = [x for x in (evaluate(i) for i in uniq.values()) if x]
-            candidates.extend(ok)
-            status.append({"site": mod.NAME, "ok": True, "fetched": len(uniq), "candidates": len(ok),
-                           "sec": round(time.time() - t0)})
             print(f"[{mod.NAME}] {len(uniq)}件取得 / 候補{len(ok)}件", flush=True)
+            return ok, {"site": mod.NAME, "ok": True, "fetched": len(uniq), "candidates": len(ok),
+                        "sec": round(time.time() - t0)}
         except Exception as e:  # 1サイトの失敗で全体を止めない
             msg = str(e) if isinstance(e, Blocked) else f"{type(e).__name__}: {e}"
             traceback.print_exc()
-            status.append({"site": mod.NAME, "ok": False, "error": msg[:200], "sec": round(time.time() - t0)})
+            return [], {"site": mod.NAME, "ok": False, "error": msg[:200], "sec": round(time.time() - t0)}
+
+    # サイトごとに別スレッドで同時に取得（同じサイトへの間隔は common.fetch が守る）
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for ok, st in ex.map(work, mods):
+            candidates.extend(ok)
+            status.append(st)
 
     # 新着判定
     rows = []

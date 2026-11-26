@@ -9,10 +9,11 @@ from ..common import Listing, fetch, norm, parse_m2, parse_price_man, parse_rati
 
 NAME = "SUUMO"
 BASE = "https://suumo.jp"
+# SUUMO の価格上限は 1億2000万円 までしか指定できないため、それを超える場合は上限なし(9999999)で取得し後で絞る
 TYPES = [  # (URLの種別, 種類, 価格上限)
     ("tochi", "土地", config.LAND_MAX_MAN),
-    ("ikkodate", "新築戸建", config.TOTAL_MAX_MAN),
-    ("chukoikkodate", "中古戸建", config.TOTAL_MAX_MAN),
+    ("ikkodate", "新築戸建", config.TOTAL_MAX_MAN if config.TOTAL_MAX_MAN <= 12000 else 9999999),
+    ("chukoikkodate", "中古戸建", config.TOTAL_MAX_MAN if config.TOTAL_MAX_MAN <= 12000 else 9999999),
 ]
 
 

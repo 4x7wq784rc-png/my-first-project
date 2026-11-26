@@ -48,12 +48,13 @@ def write_report(path: Path, today: str, first_run: bool, status: list[dict], ro
         },
         "wards": config.WARD_NAMES,
     }
-    data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(TEMPLATE.replace("/*__DATA__*/null", data), encoding="utf-8")
+    (path.parent / "items.json").write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    path.write_text(TEMPLATE, encoding="utf-8")
 
 
-TEMPLATE = r"""<title>23区 賃貸併用ウォッチ</title>
+TEMPLATE = r"""<meta charset="utf-8">
+<title>23区 賃貸併用ウォッチ</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
@@ -117,7 +118,7 @@ select{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var
 .price{text-align:right;grid-row:span 2}
 .price b{font-family:var(--f-num);font-size:1.25rem;font-weight:500;white-space:nowrap}
 .price .chg.down{color:var(--down)} .price .chg.up{color:var(--up)}
-.facts{display:flex;flex-wrap:wrap;gap:2px 16px;color:var(--muted);font-size:.86rem;min-width:0}
+.facts{grid-column:2;display:flex;flex-wrap:wrap;gap:2px 16px;color:var(--muted);font-size:.86rem;min-width:0}
 .facts span{overflow-wrap:anywhere}
 .why{font-size:.86rem;grid-column:2 / 4;min-width:0}
 .links{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:8px}
@@ -125,10 +126,9 @@ select{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var
 .links a:hover{background:var(--accent-soft)}
 .empty{text-align:center;color:var(--muted);padding:40px 0}
 @media (max-width:560px){
-  .card{grid-template-columns:auto 1fr}
-  .price{grid-row:auto;grid-column:2;text-align:left}
-  .why,.links{grid-column:1 / 3}
+  .card{grid-template-columns:auto 1fr;gap:8px 12px}
   .rank{grid-row:span 1}
+  .price,.facts,.why,.links{grid-column:1 / -1;grid-row:auto;text-align:left}
 }
 </style>
 
@@ -158,12 +158,14 @@ select{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var
 </div>
 
 <script>
-const D = /*__DATA__*/null;
+let D;
 const $ = s => document.querySelector(s);
 const yen = m => m == null ? "-" : (m >= 10000 ? (Math.floor(m/10000) + "億" + (m%10000 ? Math.round(m%10000).toLocaleString() + "万" : "")) : Math.round(m).toLocaleString() + "万") + "円";
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const isNew = it => it.first_seen === D.date;
 
+fetch("items.json").then(r => r.json()).then(d => { D = d; start(); }).catch(() => { document.querySelector("#list").innerHTML = '<p class="empty">データを読み込めませんでした。ページを再読み込みしてください。</p>'; });
+function start() {
 $("#cond").textContent = `${D.date} 更新 ・ 土地 ${yen(D.cond.landMax)}以下／新築・中古 ${yen(D.cond.totalMax)}以下 ・ 駅徒歩${D.cond.walkMax}分以内`;
 const nNew = D.items.filter(isNew).length;
 const byKind = k => D.items.filter(i => i.kind === k && isNew(i)).length;
@@ -232,5 +234,6 @@ $("#fA").onclick = () => { st.onlyA = !st.onlyA; render(); };
 $("#fWard").onchange = e => { st.ward = e.target.value; render(); };
 $("#fSort").onchange = e => { st.sort = e.target.value; render(); };
 render();
+}
 </script>
 """

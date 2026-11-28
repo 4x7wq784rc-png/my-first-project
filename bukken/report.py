@@ -1,9 +1,27 @@
 """一覧ページ（HTML）を作る。データはページ内に埋め込み、絞り込み・並べ替えはブラウザ側で行う。"""
+import datetime as dt
 import json
+import re
 from pathlib import Path
 
 from . import config
-from .common import ward_of
+from .common import norm, ward_of
+
+
+HEIYO_WORDS = ("賃貸併用", "併用住宅", "オーナー住戸", "賃貸付", "貸室", "アパート併用")
+
+
+def built_year(text: str) -> int | None:
+    """説明文から建築年を読む（'2019年3月築' '2019年築' '築7年' '2019年3月' の順に探す）"""
+    t = norm(text)
+    m = re.search(r"(19[5-9]\d|20[0-4]\d)年\s*\d{1,2}月\s*築", t) or re.search(r"(19[5-9]\d|20[0-4]\d)年築", t)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"築\s*(\d{1,2})年", t)
+    if m:
+        return dt.date.today().year - int(m.group(1))
+    m = re.search(r"(19[5-9]\d|20[0-4]\d)年\s*\d{1,2}月", t)
+    return int(m.group(1)) if m else None
 
 
 def _group(rows: list[dict]) -> list[dict]:
@@ -18,13 +36,19 @@ def _group(rows: list[dict]) -> list[dict]:
             k = (r["key"],)
         g = groups.get(k)
         link = {"site": r["site"], "url": r["url"]}
+        text = r["title"] + " " + r.get("extra", "")
+        built = built_year(text) if r["kind"] != "土地" else None
+        heiyo = r["kind"] != "土地" and any(w in norm(text) for w in HEIYO_WORDS)
         if g is None:
-            g = dict(r, ward=ward, links=[link])
+            g = dict(r, ward=ward, links=[link], built=built, heiyo=heiyo)
             groups[k] = g
         else:
             if all(x["site"] != r["site"] for x in g["links"]):
                 g["links"].append(link)
             g["first_seen"] = min(g["first_seen"], r["first_seen"])
+            g["heiyo"] = g["heiyo"] or heiyo
+            if built and (not g.get("built") or built < g["built"]):
+                g["built"] = built
             for f in ("kenpei", "yoseki", "walk_min", "land_m2", "building_m2"):
                 if g.get(f) is None and r.get(f) is not None:
                     g[f] = r[f]
@@ -34,7 +58,7 @@ def _group(rows: list[dict]) -> list[dict]:
     for g in groups.values():
         out.append({k: g.get(k) for k in (
             "kind", "rank", "title", "price_text", "price_man", "price_change", "address", "ward", "access",
-            "walk_min", "land_m2", "building_m2", "kenpei", "yoseki", "reasons", "first_seen", "links")})
+            "walk_min", "land_m2", "building_m2", "kenpei", "yoseki", "reasons", "first_seen", "links", "built", "heiyo")})
     return out
 
 
@@ -142,6 +166,7 @@ select{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var
   <details class="sites"><summary id="siteSum"></summary><div class="sitegrid" id="sites"></div></details>
   <nav class="filters" aria-label="絞り込み">
     <button class="chip" id="fNew" aria-pressed="true">新着のみ</button>
+    <button class="chip" id="fHeiyo" aria-pressed="false">築20年以内の賃貸併用</button>
     <button class="chip" data-kind="土地" aria-pressed="false">土地</button>
     <button class="chip" data-kind="新築戸建" aria-pressed="false">新築</button>
     <button class="chip" data-kind="中古戸建" aria-pressed="false">中古</button>
@@ -150,7 +175,7 @@ select{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var
     <select id="fWard" aria-label="区"><option value="">全23区</option></select>
     <select id="fSort" aria-label="並べ替え">
       <option value="rank">判定順</option><option value="new">新着順</option>
-      <option value="price">価格が安い順</option><option value="walk">駅に近い順</option>
+      <option value="built">築年が新しい順</option><option value="price">価格が安い順</option><option value="walk">駅に近い順</option>
     </select>
     <span class="count" id="count"></span>
   </nav>
@@ -184,7 +209,9 @@ $("#sites").innerHTML = D.status.map(s => s.ok
   : `<span class="bad">${esc(s.site)}：取得できず（${esc(s.error)}）</span>`).join("");
 for (const w of D.wards) $("#fWard").insertAdjacentHTML("beforeend", `<option>${w}</option>`);
 
-const st = { onlyNew: nNew > 0, kinds: new Set(), onlyA: false, ward: "", sort: "rank" };
+const st = { onlyNew: nNew > 0, heiyo20: false, kinds: new Set(), onlyA: false, ward: "", sort: "rank" };
+const thisYear = Number(D.date.slice(0, 4));
+const isHeiyo20 = it => it.heiyo && it.built && it.built >= thisYear - 20;
 try { const s = JSON.parse(localStorage.getItem("filters") || "null"); if (s) { st.kinds = new Set(s.kinds); st.onlyA = s.onlyA; st.ward = s.ward; st.sort = s.sort; } } catch (e) {}
 
 function card(it) {
@@ -199,6 +226,7 @@ function card(it) {
   if (it.access) f.push(esc(it.access));
   if (it.land_m2) f.push(`土地 <span class="num">${it.land_m2}</span>㎡`);
   if (it.building_m2) f.push(`建物 <span class="num">${it.building_m2}</span>㎡`);
+  if (it.built) f.push(`<span class="num">${it.built}</span>年築（築<span class="num">${thisYear - it.built}</span>年）`);
   if (it.kenpei || it.yoseki) f.push(`建ぺい/容積 <span class="num">${it.kenpei ?? "-"}/${it.yoseki ?? "-"}</span>%`);
   return `<article class="card ${isNew(it) ? "is-new" : ""}">
     <div class="rank ${it.rank}" title="${it.rank === "A" ? "有力" : "検討"}">${it.rank}</div>
@@ -211,25 +239,28 @@ function card(it) {
 }
 function render() {
   document.querySelectorAll("[data-kind]").forEach(b => b.setAttribute("aria-pressed", st.kinds.has(b.dataset.kind)));
-  $("#fNew").setAttribute("aria-pressed", st.onlyNew); $("#fA").setAttribute("aria-pressed", st.onlyA);
+  $("#fNew").setAttribute("aria-pressed", st.onlyNew); $("#fHeiyo").setAttribute("aria-pressed", st.heiyo20); $("#fA").setAttribute("aria-pressed", st.onlyA);
   $("#fWard").value = st.ward; $("#fSort").value = st.sort;
-  let xs = D.items.filter(i => (!st.onlyNew || isNew(i)) && (!st.kinds.size || st.kinds.has(i.kind))
+  let xs = D.items.filter(i => (!st.onlyNew || isNew(i)) && (!st.heiyo20 || isHeiyo20(i)) && (!st.kinds.size || st.kinds.has(i.kind))
     && (!st.onlyA || i.rank === "A") && (!st.ward || i.ward === st.ward));
   const big = 1e9, cmp = {
     rank: (a, b) => a.rank.localeCompare(b.rank) || (b.first_seen.localeCompare(a.first_seen)) || ((a.walk_min ?? big) - (b.walk_min ?? big)),
     new: (a, b) => b.first_seen.localeCompare(a.first_seen) || a.rank.localeCompare(b.rank),
     price: (a, b) => (a.price_man ?? big) - (b.price_man ?? big),
+    built: (a, b) => (b.built ?? 0) - (a.built ?? 0) || ((a.walk_min ?? big) - (b.walk_min ?? big)),
     walk: (a, b) => (a.walk_min ?? big) - (b.walk_min ?? big),
   }[st.sort];
   xs.sort(cmp);
   $("#count").textContent = `${xs.length}件`;
   const shown = xs.slice(0, 300);
   $("#list").innerHTML = shown.length ? shown.map(card).join("") + (xs.length > 300 ? `<p class="empty">ほか${xs.length - 300}件。区や種類で絞り込んでください。</p>` : "")
-    : `<p class="empty">条件に合う物件はありません。「新着のみ」を外すと掲載中の候補をすべて表示します。</p>`;
+    : `<p class="empty">条件に合う物件はありません。「新着のみ」などの絞り込みを外すと、掲載中の候補をすべて表示します。</p>`;
   try { localStorage.setItem("filters", JSON.stringify({ kinds: [...st.kinds], onlyA: st.onlyA, ward: st.ward, sort: st.sort })); } catch (e) {}
 }
 document.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => { st.kinds.has(b.dataset.kind) ? st.kinds.delete(b.dataset.kind) : st.kinds.add(b.dataset.kind); render(); });
 $("#fNew").onclick = () => { st.onlyNew = !st.onlyNew; render(); };
+// 押すと掲載中の全件から探す（新着のみは外す）。並びは新しい建物順
+$("#fHeiyo").onclick = () => { st.heiyo20 = !st.heiyo20; if (st.heiyo20) { st.onlyNew = false; st.sort = "built"; } else if (st.sort === "built") st.sort = "rank"; render(); };
 $("#fA").onclick = () => { st.onlyA = !st.onlyA; render(); };
 $("#fWard").onchange = e => { st.ward = e.target.value; render(); };
 $("#fSort").onchange = e => { st.sort = e.target.value; render(); };
